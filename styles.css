@@ -624,10 +624,17 @@ select {
 
 .square.selected::before,
 .square.last-move::before,
-.square.check::before {
+.square.check::before,
+.square.hint::before {
     content: "";
     position: absolute;
     inset: 0;
+}
+
+.square.hint::before {
+    background: rgba(96, 132, 255, 0.32);
+    box-shadow: inset 0 0 0 3px rgba(120, 150, 255, 0.85);
+    z-index: 2;
 }
 
 .square.selected::before {
@@ -952,6 +959,8 @@ select {
 
 .modal-card {
     width: min(460px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
     border-radius: 28px;
     padding: 28px;
 }
@@ -1159,4 +1168,26 @@ select {
     .info-grid {
         grid-template-columns: 1fr;
     }
+}
+
+.hint-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    font-size: 0.9rem;
+    color: rgba(238, 232, 222, 0.85);
+    cursor: pointer;
+    user-select: none;
+}
+
+.hint-option input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    accent-color: #7896ff;
+    cursor: pointer;
+}
+
+#hint-toggle-row {
+    margin-top: 0.75rem;
 }

@@ -35,10 +35,11 @@
             <div class="mode-grid">
                 <article class="mode-card">
                     <div class="mode-card-head">
-                        <span class="mode-tag">Solo</span>
-                        <h2>单人模式</h2>
+                        <span class="mode-tag">Local</span>
+                        <h2>本地模式</h2>
                     </div>
-                    <p>AI 默认执黑，你先手开局。难度越高，搜索深度与局面评估越强。</p>
+                    <p>本地对弈：与 AI 对战（执黑，三档难度可选），或两人在同一设备上轮流走子。</p>
+                    <p class="mini-label">人机对战</p>
                     <div class="difficulty-grid">
                         <button class="action-button difficulty-button" data-difficulty="easy">
                             <strong>简单</strong>
@@ -53,6 +54,17 @@
                             <span>更深层局面搜索</span>
                         </button>
                     </div>
+                    <p class="mini-label">本地双人</p>
+                    <div class="online-actions">
+                        <button class="action-button primary" id="local-duo-button">
+                            <strong>本地双人对弈</strong>
+                            <span>两人同机轮流走子，白方先手</span>
+                        </button>
+                    </div>
+                    <label class="hint-option">
+                        <input type="checkbox" id="solo-hint-checkbox">
+                        <span>显示 AI 提示（4 层深度估算最佳着法）</span>
+                    </label>
                 </article>
 
                 <article class="mode-card">
@@ -160,6 +172,16 @@
                             <option value="medium">中等</option>
                             <option value="hard">困难</option>
                         </select>
+                    </section>
+
+                    <section class="setup-field">
+                        <p class="mini-label">Hint</p>
+                        <strong>AI 提示</strong>
+                        <p>开启后对局中可点「提示」按钮，由 4 层深度 AI 估算当前走子方的最佳着法。</p>
+                        <label class="hint-option">
+                            <input type="checkbox" id="card-hint-checkbox">
+                            <span>显示 AI 提示</span>
+                        </label>
                     </section>
                 </div>
 
@@ -269,7 +291,12 @@
                                 <button class="action-button secondary" id="undo-button">悔棋</button>
                                 <button class="action-button secondary" id="restart-button">重新开始</button>
                                 <button class="action-button tertiary" id="back-button">返回首页</button>
+                                <button class="action-button primary hidden" id="hint-button">💡 提示</button>
                             </div>
+                            <label class="hint-option hidden" id="hint-toggle-row">
+                                <input type="checkbox" id="hint-toggle">
+                                <span>显示 AI 提示</span>
+                            </label>
                             <p class="panel-note" id="undo-help">
                                 单机悔棋会回退你和 AI 的上一轮；联机悔棋会向对手发起申请。
                             </p>
@@ -362,9 +389,15 @@
                         <strong>总发卡组数</strong>
                     </div>
                 </section>
+
             </div>
 
             <p class="panel-note" id="room-setup-summary"></p>
+
+            <label class="hint-option" id="room-hint-row">
+                <input type="checkbox" id="room-hint-checkbox">
+                <span>显示 AI 提示（你的回合用 4 层深度 AI 估算最佳着法，仅本机生效，不影响对手）</span>
+            </label>
 
             <div class="setup-action-row room-setup-actions">
                 <button class="ghost-button" id="room-setup-cancel-button" type="button">取消</button>

@@ -28,7 +28,10 @@ const PIECE_VALUES = {
 const AI_LEVELS = {
     easy: { label: "简单", depth: 1, jitter: 90 },
     medium: { label: "中等", depth: 2, jitter: 35 },
-    hard: { label: "困难", depth: 3, jitter: 0 }
+    // A small jitter (~0.25 pawn) keeps "hard" from replaying the same game: it can
+    // vary among near-equal strong moves, but stays far below any piece value so it
+    // never sheds material on purpose.
+    hard: { label: "困难", depth: 3, jitter: 25 }
 };
 
 const POSITION_TABLES = {

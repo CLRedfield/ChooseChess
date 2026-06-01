@@ -80,6 +80,9 @@ function renderBoard() {
             if (checkedSquare === square) {
                 squareElement.classList.add("check");
             }
+            if (state.hintSquares.includes(square)) {
+                squareElement.classList.add("hint");
+            }
 
             const targetMove = legalTargets.get(square);
             if (targetMove) {
@@ -191,7 +194,30 @@ function renderMoveList() {
     elements.movesCount.textContent = `${Math.ceil(history.length / 2)} 回合`;
 }
 
+function updateHintControls() {
+    if (!elements.hintButton || !elements.hintToggleRow) {
+        return;
+    }
+
+    // The live toggle is available on the game screen for every mode (it's the only
+    // way the online joiner — who has no setup screen — can turn hints on).
+    const supported = Boolean(state.mode);
+    elements.hintToggleRow.classList.toggle("hidden", !supported);
+    if (elements.hintToggle) {
+        elements.hintToggle.checked = state.hintEnabled;
+    }
+
+    const showButton = supported && state.hintEnabled;
+    elements.hintButton.classList.toggle("hidden", !showButton);
+    if (showButton) {
+        elements.hintButton.disabled = state.hintThinking || !canRequestHint();
+        elements.hintButton.textContent = state.hintThinking ? "⏳ 计算中…" : "💡 提示";
+    }
+}
+
 function updatePanels(room) {
+    updateHintControls();
+
     if (!state.mode) {
         elements.gameModeTitle.textContent = "尚未开始";
         elements.turnChip.textContent = "选择一种模式开始";
@@ -268,12 +294,20 @@ function updatePanels(room) {
     }
 
     if (state.mode === "solo") {
-        elements.gameModeTitle.textContent = `单人模式 · ${AI_LEVELS[state.aiDifficulty].label}`;
+        elements.gameModeTitle.textContent = `本地模式 · 人机 · ${AI_LEVELS[state.aiDifficulty].label}`;
         elements.roomCodeDisplay.textContent = "本地对局";
         elements.playerColorDisplay.textContent = "白方";
         elements.matchStatusDisplay.textContent = state.aiThinking ? "AI 思考中" : "进行中";
         elements.roomNote.textContent = "AI 默认执黑，你负责白方先手。";
         elements.undoHelp.textContent = "点击悔棋会回退你和 AI 的上一轮，让你重新思考布局。";
+        elements.copyRoomButton.classList.add("hidden");
+    } else if (state.mode === "local") {
+        elements.gameModeTitle.textContent = "本地模式 · 双人";
+        elements.roomCodeDisplay.textContent = "本地对局";
+        elements.playerColorDisplay.textContent = state.chess.turn() === "w" ? "白方行动" : "黑方行动";
+        elements.matchStatusDisplay.textContent = "进行中";
+        elements.roomNote.textContent = "两人在同一设备上轮流走子，白方先手。";
+        elements.undoHelp.textContent = "点击悔棋会回退最近一步，交还给上一位走子的玩家。";
         elements.copyRoomButton.classList.add("hidden");
     } else {
         elements.gameModeTitle.textContent = isOnlineCardRoom(roomData) ? "多人联机 · 选卡模式" : "多人联机";
@@ -294,7 +328,7 @@ function updatePanels(room) {
         elements.turnChip.textContent = result ? result.message : `${turnLabel}${checkLabel}`;
     }
 
-    const canUndoSolo = state.mode === "solo" && state.localHistory.length > 0 && !state.aiThinking;
+    const canUndoSolo = (state.mode === "solo" || state.mode === "local") && state.localHistory.length > 0 && !state.aiThinking;
     const canUndoOnline = Boolean(
         state.mode === "online" &&
         roomData &&

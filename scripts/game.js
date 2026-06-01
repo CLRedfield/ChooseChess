@@ -13,6 +13,10 @@ function bindEvents() {
         button.addEventListener("click", () => startSoloGame(button.dataset.difficulty));
     });
 
+    if (elements.localDuoButton) {
+        elements.localDuoButton.addEventListener("click", startLocalDuoGame);
+    }
+
     elements.createRoomButton.addEventListener("click", openOnlineRoomSetup);
     elements.joinRoomButton.addEventListener("click", joinOnlineRoom);
     elements.startCardModeButton.addEventListener("click", openCardModeSetup);
@@ -20,6 +24,19 @@ function bindEvents() {
     elements.undoButton.addEventListener("click", handleUndo);
     elements.restartButton.addEventListener("click", handleRestart);
     elements.backButton.addEventListener("click", () => returnToHome(false));
+    if (elements.hintButton) {
+        elements.hintButton.addEventListener("click", handleHintClick);
+    }
+    if (elements.hintToggle) {
+        elements.hintToggle.addEventListener("change", (event) => {
+            state.hintEnabled = event.target.checked;
+            if (!state.hintEnabled) {
+                clearHint(false);
+            }
+            renderBoard();
+            updatePanels();
+        });
+    }
     elements.cardCancelButton.addEventListener("click", cancelCardDeployment);
     elements.cardFinishButton.addEventListener("click", finishCardDeployment);
     elements.cardSetupBackButton.addEventListener("click", closeCardModeSetup);
@@ -119,6 +136,11 @@ async function createConfiguredOnlineRoom() {
     const setup = ensureOnlineRoomSetupState();
     await createOnlineRoom(setup);
     if (state.mode === "online") {
+        state.hintEnabled = Boolean(elements.roomHintCheckbox && elements.roomHintCheckbox.checked);
+        state.hintThinking = false;
+        state.hintSquares = [];
+        state.hintText = "";
+        updatePanels();
         closeOnlineRoomSetup();
     }
 }
@@ -204,6 +226,7 @@ function closeCardModeSetup() {
 
 function startConfiguredCardModeGame() {
     const setupState = ensureCardModeSetupState();
+    state.hintEnabled = Boolean(elements.cardHintCheckbox && elements.cardHintCheckbox.checked);
     startCardModeGame(setupState.settings);
 }
 
@@ -247,10 +270,42 @@ function startSoloGame(difficulty) {
     state.selectedSquare = null;
     state.legalMoves = [];
     state.announcedResultKey = null;
+    state.hintEnabled = Boolean(elements.soloHintCheckbox && elements.soloHintCheckbox.checked);
+    state.hintThinking = false;
+    state.hintSquares = [];
+    state.hintText = "";
     showGameScreen();
     renderBoard();
     updatePanels();
-    showToast(`已开始单人模式：${AI_LEVELS[difficulty].label}`, "success");
+    showToast(`已开始本地人机：${AI_LEVELS[difficulty].label}`, "success");
+}
+
+function startLocalDuoGame() {
+    cleanupOnlineRoom({ preserveRoom: false });
+    state.mode = "local";
+    state.aiDifficulty = null;
+    state.playerColor = "w";
+    state.aiColor = null;
+    state.aiThinking = false;
+    state.chess = new Chess();
+    state.localHistory = [];
+    state.lastMoveSquares = [];
+    state.selectedSquare = null;
+    state.legalMoves = [];
+    state.announcedResultKey = null;
+    state.hintEnabled = Boolean(elements.soloHintCheckbox && elements.soloHintCheckbox.checked);
+    state.hintThinking = false;
+    state.hintSquares = [];
+    state.hintText = "";
+    showGameScreen();
+    renderBoard();
+    updatePanels();
+    showToast("已开始本地双人对弈，白方先手。", "success");
+}
+
+// In local two-player mode the human controls whichever side is to move.
+function getActivePlayerColor() {
+    return state.mode === "local" ? state.chess.turn() : state.playerColor;
 }
 
 function returnToHome(silent) {
@@ -266,6 +321,10 @@ function returnToHome(silent) {
     state.lastMoveSquares = [];
     state.announcedResultKey = null;
     state.cardMode = null;
+    state.hintEnabled = false;
+    state.hintThinking = false;
+    state.hintSquares = [];
+    state.hintText = "";
     elements.gameScreen.classList.add("hidden");
     elements.cardSetupScreen.classList.add("hidden");
     closeOnlineRoomSetup();
@@ -310,7 +369,7 @@ function handleBoardClick(square) {
         }
     }
 
-    if (!piece || piece.color !== state.playerColor) {
+    if (!piece || piece.color !== getActivePlayerColor()) {
         clearSelection();
         return;
     }
@@ -329,6 +388,11 @@ function isInteractionLocked() {
         return state.aiThinking || state.chess.turn() !== state.playerColor;
     }
 
+    if (state.mode === "local") {
+        // Hot-seat: whoever is to move may act; only the game-over check above locks.
+        return false;
+    }
+
     if (!state.online.roomData) {
         return true;
     }
@@ -344,14 +408,16 @@ function canLocalPlayerAct() {
 async function attemptMove(move) {
     clearSelection(false);
 
-    if (state.mode === "solo") {
+    if (state.mode === "solo" || state.mode === "local") {
         const applied = applyLocalMove(move);
         if (!applied) {
             return;
         }
 
         updateAfterMove(applied);
-        await maybeRunAiTurn();
+        if (state.mode === "solo") {
+            await maybeRunAiTurn();
+        }
         return;
     }
 
@@ -386,6 +452,7 @@ function applyLocalMove(move) {
 
 function updateAfterMove(appliedMove) {
     state.lastMoveSquares = [appliedMove.from, appliedMove.to];
+    clearHint(false);
     renderBoard();
     updatePanels();
     syncResultNotification();
@@ -464,18 +531,27 @@ async function handleUndo() {
         return;
     }
 
+    if (state.mode === "local") {
+        undoLocalChessPlies(1, "已回退一步。");
+        return;
+    }
+
     if (state.mode === "online") {
         await requestOnlineUndo();
     }
 }
 
 function undoSoloRound() {
+    undoLocalChessPlies(2, "已回退上一轮。");
+}
+
+function undoLocalChessPlies(maxPlies, successMessage) {
     if (!state.localHistory.length) {
         showToast("当前没有可悔的步数。", "error");
         return;
     }
 
-    const steps = Math.min(2, state.localHistory.length);
+    const steps = Math.min(maxPlies, state.localHistory.length);
     for (let index = 0; index < steps; index += 1) {
         state.chess.undo();
         state.localHistory.pop();
@@ -484,9 +560,10 @@ function undoSoloRound() {
     const recent = state.localHistory[state.localHistory.length - 1];
     state.lastMoveSquares = recent ? [recent.from, recent.to] : [];
     state.announcedResultKey = null;
+    clearHint(false);
     renderBoard();
     updatePanels();
-    showToast("已回退上一轮。", "success");
+    showToast(successMessage, "success");
 }
 
 function handleRestart() {
@@ -497,6 +574,11 @@ function handleRestart() {
 
     if (state.mode === "solo") {
         startSoloGame(state.aiDifficulty || "easy");
+        return;
+    }
+
+    if (state.mode === "local") {
+        startLocalDuoGame();
         return;
     }
 
@@ -529,5 +611,78 @@ function clearSelection(shouldRender) {
 
     if (shouldRender !== false) {
         renderBoard();
+    }
+}
+
+function clearHint(shouldRender) {
+    const hadHint = state.hintSquares.length > 0 || Boolean(state.hintText);
+    state.hintSquares = [];
+    state.hintText = "";
+
+    if (hadHint && shouldRender !== false) {
+        renderBoard();
+    }
+}
+
+// Whether the local player may ask for a hint right now (their turn, game live).
+function canRequestHint() {
+    if (!state.mode) {
+        return false;
+    }
+
+    if (isCardModeSessionActive()) {
+        return canCardModeHumanInteract() && !state.cardMode.deploying;
+    }
+
+    if (state.chess.game_over() || state.aiThinking) {
+        return false;
+    }
+
+    return state.chess.turn() === getActivePlayerColor();
+}
+
+async function handleHintClick() {
+    if (!state.hintEnabled || state.hintThinking) {
+        return;
+    }
+
+    if (!canRequestHint()) {
+        showToast("现在轮不到你，暂时无法给出提示。", "error");
+        return;
+    }
+
+    // Show the "computing" state and repaint (clearing any stale hint) before the
+    // synchronous depth-4 search blocks the thread.
+    state.hintThinking = true;
+    state.hintSquares = [];
+    state.hintText = "";
+    updatePanels();
+    renderBoard();
+    await delay(0);
+
+    let hint = null;
+    try {
+        hint = isCardModeSessionActive() ? computeCardModeHint(4) : computeChessHint(4);
+    } catch (error) {
+        console.error(error);
+    }
+
+    state.hintThinking = false;
+
+    // The board may have changed while we yielded (e.g. an online snapshot arrived).
+    if (!hint || !canRequestHint()) {
+        updatePanels();
+        renderBoard();
+        showToast("暂时算不出提示。", "error");
+        return;
+    }
+
+    state.hintSquares = Array.isArray(hint.squares) ? hint.squares : [];
+    state.hintText = hint.text || "";
+    renderBoard();
+    updatePanels();
+
+    if (hint.text) {
+        showToast(hint.text, "success");
     }
 }

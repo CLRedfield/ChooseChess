@@ -30,6 +30,9 @@ function renderCardModeBoard() {
             if (checkedSquare === square) {
                 squareElement.classList.add("check");
             }
+            if (state.hintSquares.includes(square)) {
+                squareElement.classList.add("hint");
+            }
 
             if (cardState.phase === "deploy" && isCardModeDeploySquare(square, cardState.turn)) {
                 squareElement.classList.add("deployable");

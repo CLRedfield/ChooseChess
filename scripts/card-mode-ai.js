@@ -16,7 +16,7 @@ async function maybeRunCardModeAiTurn() {
     state.aiThinking = true;
     renderBoard();
     updatePanels();
-    await delay(280);
+    await delay(140);
 
     try {
         while (
@@ -50,7 +50,7 @@ async function maybeRunCardModeAiTurn() {
                 break;
             }
 
-            await delay(260);
+            await delay(140);
         }
     } finally {
         state.aiThinking = false;
@@ -60,7 +60,11 @@ async function maybeRunCardModeAiTurn() {
 }
 
 function pickBestCardModeAiCandidate(cardState, aiColor, difficulty) {
-    const settings = CARD_MODE_AI_LEVELS[difficulty] || CARD_MODE_AI_LEVELS.medium;
+    // `difficulty` is normally a level key ("easy"/"medium"/"hard"); the hint path
+    // passes a settings object directly so it can search deeper with no jitter.
+    const settings = (difficulty && typeof difficulty === "object")
+        ? difficulty
+        : (CARD_MODE_AI_LEVELS[difficulty] || CARD_MODE_AI_LEVELS.medium);
     const candidates = getCardModeAiCandidates(cardState, cardState.turn, settings.maxActions);
     let bestScore = -Infinity;
     let bestCandidates = [];
@@ -94,6 +98,53 @@ function pickBestCardModeAiCandidate(cardState, aiColor, difficulty) {
     });
 
     return bestCandidates[Math.floor(Math.random() * bestCandidates.length)] || null;
+}
+
+// Depth-4 hint for the side to move in card mode. Reuses the AI candidate search
+// (jitter 0 = true best) and maps the chosen candidate to board squares + text.
+function computeCardModeHint(depth = 4) {
+    if (!state.cardMode || state.cardMode.status !== "playing") {
+        return null;
+    }
+
+    const hintColor = state.cardMode.turn;
+    const candidate = pickBestCardModeAiCandidate(state.cardMode, hintColor, {
+        depth,
+        jitter: 0,
+        maxActions: 10
+    });
+
+    if (!candidate) {
+        return null;
+    }
+
+    if (candidate.type === "move") {
+        const movingPiece = state.cardMode.board[candidate.move.from] || null;
+        const capturedPiece = candidate.move.captured || null;
+        const label = movingPiece
+            ? buildCardModeMoveLabel(movingPiece, candidate.move, capturedPiece)
+            : `${candidate.move.from} → ${candidate.move.to}`;
+        return {
+            squares: [candidate.move.from, candidate.move.to],
+            text: `建议: ${label}`
+        };
+    }
+
+    if (candidate.type === "draft") {
+        return {
+            squares: [],
+            text: `建议选卡：${candidate.title}`
+        };
+    }
+
+    if (candidate.type === "deploy") {
+        return {
+            squares: (candidate.placements || []).map((placement) => placement.square),
+            text: `建议使用卡牌：${candidate.title}`
+        };
+    }
+
+    return null;
 }
 
 function minimaxCardMode(cardState, depth, alpha, beta, aiColor, settings) {

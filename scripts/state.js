@@ -69,6 +69,13 @@ const elements = {
     cardSetupBackButton: document.getElementById("card-setup-back-button"),
     confirmCardModeButton: document.getElementById("confirm-card-mode-button"),
     cardConfirmModeNote: document.getElementById("card-confirm-mode-note"),
+    localDuoButton: document.getElementById("local-duo-button"),
+    hintButton: document.getElementById("hint-button"),
+    hintToggle: document.getElementById("hint-toggle"),
+    hintToggleRow: document.getElementById("hint-toggle-row"),
+    soloHintCheckbox: document.getElementById("solo-hint-checkbox"),
+    cardHintCheckbox: document.getElementById("card-hint-checkbox"),
+    roomHintCheckbox: document.getElementById("room-hint-checkbox"),
     difficultyButtons: Array.from(document.querySelectorAll(".difficulty-button"))
 };
 
@@ -83,6 +90,10 @@ const state = {
     lastMoveSquares: [],
     localHistory: [],
     aiThinking: false,
+    hintEnabled: false,
+    hintThinking: false,
+    hintSquares: [],
+    hintText: "",
     announcedResultKey: null,
     cardMode: null,
     cardModeSetup: null,

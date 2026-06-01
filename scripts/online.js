@@ -428,6 +428,22 @@ function handleRoomSnapshot(snapshot) {
 
     state.online.roomData = room;
 
+    // Drop any stale hint highlight once the position/turn actually changes
+    // (opponent moved, undo applied, …) — but not on presence-only updates.
+    const boardChanged = !previousRoom || (
+        isOnlineCardRoom(room)
+            ? (
+                !previousRoom.cardState ||
+                !room.cardState ||
+                previousRoom.cardState.history.length !== room.cardState.history.length ||
+                previousRoom.cardState.turn !== room.cardState.turn
+            )
+            : previousRoom.fen !== room.fen
+    );
+    if (boardChanged) {
+        clearHint(false);
+    }
+
     if (isOnlineCardRoom(room)) {
         const keepLocalDeploy = Boolean(
             state.cardMode &&

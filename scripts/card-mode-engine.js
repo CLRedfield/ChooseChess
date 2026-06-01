@@ -15,6 +15,9 @@ function startCardModeGame(settingsCandidate) {
     state.legalMoves = [];
     state.lastMoveSquares = [];
     state.announcedResultKey = null;
+    state.hintThinking = false;
+    state.hintSquares = [];
+    state.hintText = "";
     state.cardModeSetup = { settings };
     state.cardMode = createCardModeEmptyState(settings);
     state.cardMode.board = createCardModeInitialBoard();
@@ -320,6 +323,7 @@ function buildCardModeDeployLabel(cardTitle, deployedCount) {
 
 function concludeCardModeAction(actionLabel) {
     const result = concludeCardModeActionOnState(state.cardMode, actionLabel);
+    clearHint(false);
     renderBoard();
     updatePanels();
 
@@ -658,6 +662,8 @@ function handleCardModeUndo() {
     if (!cardState || state.aiThinking) {
         return;
     }
+
+    clearHint(false);
 
     if (cardState.phase === "deploy" && cardState.pendingActionSnapshot) {
         restoreCardModeSnapshot(cardState.pendingActionSnapshot, {
